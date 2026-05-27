@@ -153,16 +153,49 @@ function onPosErr(e) {
   $status.textContent = 'Sijainti epäonnistui: ' + e.message;
 }
 
-function onOrient(e) {
+// Bearing (degrees clockwise from magnetic north) of the phone's "top" edge,
+// computed by projecting device +Y onto the horizontal world plane using the
+// W3C Z-X'-Y'' rotation. Works at any tilt where the top isn't pointing
+// straight up/down (degenerate case).
+function headingFromOrientation(alpha, beta) {
+  const aR = alpha * Math.PI / 180;
+  const bR = beta  * Math.PI / 180;
+  const Vx = -Math.sin(aR) * Math.cos(bR);
+  const Vy =  Math.cos(aR) * Math.cos(bR);
+  let deg = Math.atan2(Vx, Vy) * 180 / Math.PI;
+  if (deg < 0) deg += 360;
+  return deg;
+}
+
+let haveAbsolute = false;
+let headingEMA = null;
+
+function onOrientAbs(e) { haveAbsolute = true; handleOrient(e, true); }
+function onOrientRel(e) { if (!haveAbsolute) handleOrient(e, !!e.absolute); }
+
+function handleOrient(e, absolute) {
   let h;
   if (typeof e.webkitCompassHeading === 'number') {
-    h = e.webkitCompassHeading;
-  } else if (typeof e.alpha === 'number') {
-    h = (360 - e.alpha) % 360;
+    h = e.webkitCompassHeading;            // iOS: already true compass heading
+  } else if (e.alpha != null && e.beta != null && absolute) {
+    h = headingFromOrientation(e.alpha, e.beta);
   } else {
-    return;
+    return;                                 // no usable absolute data yet
   }
-  heading = h;
+  // Subtract screen rotation so landscape works
+  const screenAngle = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+  h = (h - screenAngle + 360) % 360;
+  // Low-pass filter (EMA on the unit circle to avoid wrap glitches)
+  if (headingEMA == null) {
+    headingEMA = h;
+  } else {
+    const a = 0.2;
+    const r1 = headingEMA * Math.PI / 180, r2 = h * Math.PI / 180;
+    const x = (1-a) * Math.cos(r1) + a * Math.cos(r2);
+    const y = (1-a) * Math.sin(r1) + a * Math.sin(r2);
+    headingEMA = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  }
+  heading = headingEMA;
   render();
 }
 
@@ -170,15 +203,15 @@ function startCompass() {
   if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
     DeviceOrientationEvent.requestPermission().then(state => {
       if (state === 'granted') {
-        window.addEventListener('deviceorientation', onOrient, true);
+        window.addEventListener('deviceorientation', onOrientRel, true);
         $permbtn.hidden = true;
       } else {
         $status.textContent = 'Kompassi-lupa evätty';
       }
     }).catch(() => { $status.textContent = 'Kompassia ei voitu käynnistää'; });
   } else {
-    window.addEventListener('deviceorientationabsolute', onOrient, true);
-    window.addEventListener('deviceorientation', onOrient, true);
+    window.addEventListener('deviceorientationabsolute', onOrientAbs, true);
+    window.addEventListener('deviceorientation', onOrientRel, true);
     $permbtn.hidden = true;
   }
 }
