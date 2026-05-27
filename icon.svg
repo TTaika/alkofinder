@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#0b0b0c"/>
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#2a2a2e" stroke-width="10"/>
+  <polygon points="256,80 330,420 256,360 182,420" fill="#ff5252"/>
+  <text x="256" y="74" text-anchor="middle" font-family="-apple-system,Segoe UI,Roboto,sans-serif" font-weight="700" font-size="40" fill="#ff5252">N</text>
+</svg>
