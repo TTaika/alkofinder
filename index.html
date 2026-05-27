@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0c">
+<title>Alko Finder</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #0b0b0c; color: #f4f4f4;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden; touch-action: manipulation;
+    -webkit-user-select: none; user-select: none;
+  }
+  #app {
+    height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+    box-sizing: border-box;
+  }
+  #compass {
+    width: min(75vw, 360px); aspect-ratio: 1;
+    border-radius: 50%; border: 2px solid #2a2a2e;
+    background: radial-gradient(circle at 50% 50%, #15151a 0%, #0d0d10 70%);
+    position: relative;
+  }
+  #arrow {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 200ms linear;
+    will-change: transform;
+  }
+  #arrow svg { width: 60%; height: 60%; }
+  .n-mark {
+    position: absolute; top: 6px; left: 50%;
+    transform: translateX(-50%);
+    color: #ff5252; font-weight: 700; font-size: 14px; letter-spacing: 1px;
+  }
+  #distance {
+    margin-top: 32px;
+    font-size: clamp(40px, 11vw, 64px);
+    font-weight: 700; letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  #store { margin-top: 4px; color: #b6b6bb; font-size: 16px; text-align: center; }
+  #status {
+    position: absolute; top: 12px; left: 12px; right: 12px;
+    text-align: center; font-size: 13px; color: #888;
+  }
+  #permbtn {
+    margin-top: 20px; padding: 12px 24px;
+    background: #ff5252; color: #fff; border: 0; border-radius: 999px;
+    font-size: 16px; font-weight: 600;
+  }
+  #permbtn[hidden] { display: none; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="status">Etsitään sijaintia…</div>
+  <div id="compass">
+    <span class="n-mark">N</span>
+    <div id="arrow">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <polygon points="50,8 72,82 50,68 28,82" fill="#ff5252"/>
+      </svg>
+    </div>
+  </div>
+  <div id="distance">—</div>
+  <div id="store">—</div>
+  <button id="permbtn" hidden>Käynnistä kompassi</button>
+</div>
+<script>
+const STORES = [{"n":"Alko","c":"Turku","s":"Yliopistonkatu","lat":60.45056,"lon":22.26303},{"n":"Alko","c":"","s":"","lat":62.70714,"lon":25.2564},{"n":"Alko","c":"Helsinki","s":"Siltasaarenkatu","lat":60.18056,"lon":24.94918},{"n":"Alko","c":"","s":"","lat":60.40814,"lon":22.36108},{"n":"Alko","c":"Helsinki","s":"Kauppakartanonkatu","lat":60.20948,"lon":25.08631},{"n":"Alko","c":"Helsinki","s":"Panuntie","lat":60.22194,"lon":24.94878},{"n":"Alko","c":"Helsinki","s":"Viikintori","lat":60.22744,"lon":25.0093},{"n":"Alko","c":"Helsinki","s":"Hiihtäjäntie","lat":60.19442,"lon":25.02832},{"n":"Alko","c":"","s":"","lat":60.2374,"lon":25.08364},{"n":"Alko","c":"Vantaa","s":"Minkkikuja","lat":60.35033,"lon":25.07945},{"n":"Alko","c":"Helsinki","s":"Raumantie","lat":60.20606,"lon":24.87671},{"n":"Alko","c":"Turku","s":"Uudenmaantie","lat":60.4421,"lon":22.28602},{"n":"Alko","c":"Mikkeli","s":"Graanintie","lat":61.68626,"lon":27.29665},{"n":"Alko","c":"Helsinki","s":"Takomotie","lat":60.21778,"lon":24.86962},{"n":"Alko","c":"Jyväskylä","s":"Palokanorsi","lat":62.28788,"lon":25.71754},{"n":"Alko","c":"Helsinki","s":"Kantelettarentie","lat":60.23747,"lon":24.89296},{"n":"Alko","c":"Turku","s":"Kalevantie","lat":60.44593,"lon":22.32344},{"n":"Alko","c":"Heinola","s":"Hevossaarentie","lat":61.19211,"lon":25.99824},{"n":"Alko","c":"Vaasa","s":"Hovioikeudenpuistikko","lat":63.09686,"lon":21.61616},{"n":"Alko","c":"","s":"","lat":64.40389,"lon":27.83917},{"n":"Alko","c":"Kokkola","s":"Rautatienkatu","lat":63.836,"lon":23.1421},{"n":"Alko","c":"Kokkola","s":"Prismantie","lat":63.83174,"lon":23.12608},{"n":"Alko","c":"","s":"","lat":61.98474,"lon":24.07214},{"n":"Alko","c":"Kajaani","s":"","lat":64.22142,"lon":27.74758},{"n":"Alko","c":"","s":"","lat":60.47391,"lon":22.28646},{"n":"Alko","c":"Jyväskylä","s":"Asemakatu","lat":62.24239,"lon":25.74919},{"n":"Alko","c":"Vaasa","s":"Jukolantie","lat":63.10312,"lon":21.647},{"n":"Alko","c":"Haapajärvi","s":"Kirkkokatu","lat":63.74964,"lon":25.31752},{"n":"Alko","c":"Raisio","s":"Myllynkatu","lat":60.49083,"lon":22.20208},{"n":"Alko","c":"Helsinki","s":"Fabianinkatu","lat":60.16428,"lon":24.95013},{"n":"Alko","c":"Helsinki","s":"Hietalahdenranta","lat":60.16119,"lon":24.93037},{"n":"Alko","c":"Oulu","s":"Revonkuja","lat":65.03041,"lon":25.46973},{"n":"Alko","c":"","s":"","lat":60.38962,"lon":23.12648},{"n":"Alko","c":"Tuusula","s":"Hyrylänkatu","lat":60.39699,"lon":25.01937},{"n":"Alko","c":"Helsinki","s":"Hämeentie","lat":60.20252,"lon":24.96794},{"n":"Alko","c":"Vantaa","s":"Tammiston kauppatie","lat":60.27292,"lon":24.97319},{"n":"Alko","c":"Oulu","s":"Torikatu","lat":65.01203,"lon":25.46842},{"n":"Alko","c":"Sipoo","s":"Pornaistentie","lat":60.37687,"lon":25.27162},{"n":"Alko","c":"Jyväskylä","s":"Kylmälahdentie","lat":62.21596,"lon":25.7197},{"n":"Alko","c":"Helsinki","s":"Vanhanlinnantie","lat":60.21404,"lon":25.08772},{"n":"Alko","c":"Jakobstad","s":"Skolgatan","lat":63.67774,"lon":22.71526},{"n":"Alko","c":"Jyväskylä","s":"Vasarakatu","lat":62.26351,"lon":25.77424},{"n":"Alko","c":"Oulu","s":"Kauppalinnankuja","lat":65.05377,"lon":25.45668},{"n":"Alko","c":"Tampere","s":"Harjuntausta","lat":61.51456,"lon":23.66705},{"n":"Alko","c":"Taavetti","s":"Linnalantie","lat":60.92192,"lon":27.56779},{"n":"Alko","c":"","s":"","lat":61.13315,"lon":21.50696},{"n":"Alko","c":"Rauma","s":"Äyhönjärventie","lat":61.13168,"lon":21.53867},{"n":"Alko","c":"Helsinki","s":"Vuotie","lat":60.20675,"lon":25.14597},{"n":"Alko","c":"","s":"Terveystie","lat":63.54816,"lon":23.69024},{"n":"Alko","c":"Turku","s":"Skanssinkatu","lat":60.43025,"lon":22.32296},{"n":"Alko","c":"","s":"","lat":62.0971,"lon":30.14154},{"n":"Alko","c":"","s":"Munkinmäentie","lat":60.1177,"lon":24.44631},{"n":"Alko","c":"Naantali","s":"Tuulensuunkatu","lat":60.4679,"lon":22.0322},{"n":"Alko","c":"","s":"","lat":60.3782,"lon":24.75816},{"n":"Alko","c":"Kemiö","s":"Engelsbyvägen","lat":60.16396,"lon":22.73633},{"n":"Alko","c":"Kauhava","s":"Heimolankuja","lat":63.10053,"lon":23.05353},{"n":"Alko","c":"Kristiinankaupunki","s":"Merikatu","lat":62.27515,"lon":21.38077},{"n":"Alko","c":"Tampere","s":"Pietilänkatu","lat":61.45108,"lon":23.85203},{"n":"Alko","c":"Porvoo","s":"Aleksanterinkaari","lat":60.38691,"lon":25.65181},{"n":"Alko","c":"Laihia","s":"Ratikyläntie","lat":62.98292,"lon":22.00673},{"n":"Alko","c":"Tampere","s":"Lempääläntie","lat":61.4681,"lon":23.77791},{"n":"Alko","c":"","s":"","lat":60.87074,"lon":25.27656},{"n":"Alko","c":"Eura","s":"Satakunnankatu","lat":61.13094,"lon":22.12816},{"n":"Alko","c":"Hollola","s":"Kansankatu","lat":60.98963,"lon":25.51556},{"n":"Alko","c":"Järvenpää","s":"Rantakatu","lat":60.47111,"lon":25.08297},{"n":"Alko","c":"Posio","s":"Posiontie","lat":66.11239,"lon":28.15667},{"n":"Alko","c":"Tampere","s":"","lat":61.49713,"lon":23.75815},{"n":"Alko","c":"Oulu","s":"","lat":64.99474,"lon":25.46293},{"n":"Alko","c":"","s":"Iskoskuja","lat":60.25985,"lon":24.85308},{"n":"Alko","c":"Kangasniemi","s":"Otto Mannisen tie","lat":61.9881,"lon":26.64249},{"n":"Alko","c":"Lahti","s":"","lat":60.9825,"lon":25.66034},{"n":"Alko","c":"Mäntyharju","s":"","lat":61.41654,"lon":26.87927},{"n":"Alko","c":"Levi","s":"","lat":67.80891,"lon":24.8062},{"n":"Alko","c":"Juva","s":"Piikkiläntie","lat":61.89647,"lon":27.85542},{"n":"Alko","c":"Äkäslompolo","s":"Sannanrannantie","lat":67.60547,"lon":24.15461},{"n":"Alko","c":"Helsinki","s":"Maurinkatu","lat":60.17459,"lon":24.95949},{"n":"Alko","c":"Helsinki","s":"Itämerenkatu","lat":60.1637,"lon":24.91135},{"n":"Alko","c":"Mikkeli","s":"Savilahdenkatu","lat":61.68907,"lon":27.27414},{"n":"Alko","c":"Ilmajoki","s":"Kauppatie","lat":62.73037,"lon":22.57857},{"n":"Alko Tornio","c":"","s":"","lat":65.84317,"lon":24.14481},{"n":"Alko","c":"Nykarleby","s":"Kvarnvägen","lat":63.52922,"lon":22.53854},{"n":"Alko","c":"","s":"","lat":62.62828,"lon":29.70282},{"n":"Alko","c":"","s":"","lat":60.54512,"lon":21.35389},{"n":"Alko","c":"Tampere","s":"Liikekatu","lat":61.49614,"lon":23.88164},{"n":"Alko","c":"Helsinki","s":"Helsinginkatu","lat":60.1873,"lon":24.95483},{"n":"Alko","c":"Espoo","s":"Leppävaarankatu","lat":60.21795,"lon":24.80925},{"n":"Alko","c":"Kuopio","s":"Savilahdentie","lat":62.88807,"lon":27.63285},{"n":"Alko","c":"Helsinki","s":"Vuorimiehenkatu","lat":60.15931,"lon":24.94388},{"n":"Alko","c":"","s":"","lat":61.74308,"lon":26.10726},{"n":"Alko","c":"Äänekoivisto","s":"Suonenjoentie","lat":62.51788,"lon":25.68965},{"n":"Alko","c":"","s":"","lat":60.73205,"lon":24.77932},{"n":"Alko","c":"Riihimäki","s":"Merkoksenkatu","lat":60.7226,"lon":24.73509},{"n":"Alko","c":"Kuhmoinen","s":"Toritie","lat":61.56562,"lon":25.18128},{"n":"Alko","c":"Karttula","s":"Kissakuusentie","lat":62.8948,"lon":26.97196},{"n":"Alko","c":"","s":"","lat":62.47661,"lon":21.33871},{"n":"Alko","c":"Parainen","s":"Skärgårdsvägen","lat":60.19234,"lon":21.90992},{"n":"Alko","c":"Sastamala","s":"Torikatu","lat":61.34019,"lon":22.90892},{"n":"Alko","c":"Huittinen","s":"Särmänkatu","lat":61.17842,"lon":22.6979},{"n":"Alko","c":"Heinola","s":"Savontie","lat":61.20306,"lon":26.03033},{"n":"Alko","c":"Kotka","s":"Kirkkokatu","lat":60.4667,"lon":26.94464},{"n":"Alko","c":"Ristiina","s":"Brahentie","lat":61.5113,"lon":27.24718},{"n":"Alko","c":"","s":"","lat":59.97834,"lon":23.44134},{"n":"Alko","c":"Tampere","s":"Puutarhakatu","lat":61.49932,"lon":23.75588},{"n":"Alko","c":"Sulkava","s":"Alanteentie","lat":61.78738,"lon":28.37021},{"n":"Alko","c":"Tampere","s":"Hämeenkatu","lat":61.49871,"lon":23.77072},{"n":"Alko","c":"Seinäjoki","s":"Keskuskatu","lat":62.79191,"lon":22.84075},{"n":"Alko","c":"Oulu","s":"Metsokankaantie","lat":64.95656,"lon":25.52634},{"n":"Alko","c":"Härmä","s":"Jorma Lillbackantie","lat":63.23016,"lon":22.8437},{"n":"Alko","c":"Salla","s":"","lat":66.83179,"lon":28.67},{"n":"Alko","c":"Espoo","s":"Tapionaukio","lat":60.17602,"lon":24.80573},{"n":"Alko","c":"Lapinlahti","s":"Linnansalmentie","lat":63.36648,"lon":27.39835},{"n":"Alko","c":"","s":"Sammonkatu","lat":61.49033,"lon":23.82116},{"n":"Alko","c":"Toijala","s":"Valtatie","lat":61.16839,"lon":23.86725},{"n":"Alko","c":"Hyllykallio","s":"Hyllykalliontie","lat":62.80544,"lon":22.87497},{"n":"Alko","c":"","s":"","lat":60.80786,"lon":23.63032},{"n":"Alko","c":"Haukipudas","s":"Revontie","lat":65.17587,"lon":25.34821},{"n":"Alko","c":"","s":"Katsastusmiehentie","lat":61.00748,"lon":24.42173},{"n":"Alko","c":"Sodankylä","s":"Haastajantie","lat":67.41396,"lon":26.58736},{"n":"Alko","c":"Ikaalinen","s":"Teollisuustalontie","lat":61.76147,"lon":23.07157},{"n":"Alko","c":"Puumala","s":"Keskustie","lat":61.52356,"lon":28.1782},{"n":"Alko","c":"Orimattila","s":"Erkontie","lat":60.80481,"lon":25.73096},{"n":"Alko","c":"","s":"","lat":60.95978,"lon":25.6549},{"n":"Alko","c":"","s":"","lat":67.65559,"lon":24.90935},{"n":"Alko","c":"Alavus","s":"Vähtärintie","lat":62.58729,"lon":23.6141},{"n":"Alko","c":"Helsinki","s":"Salomonkatu","lat":60.17079,"lon":24.93526},{"n":"Alko","c":"Helsinki","s":"Sandelsinkatu","lat":60.17868,"lon":24.92388},{"n":"Alko","c":"Parikkala","s":"Parikkalantie","lat":61.55723,"lon":29.50019},{"n":"Alko","c":"","s":"","lat":60.50083,"lon":26.86912},{"n":"Alko","c":"Espoo","s":"Lähderanta","lat":60.24069,"lon":24.74052},{"n":"Alko","c":"Iisalmi","s":"Satamakatu","lat":63.55576,"lon":27.19044},{"n":"Alko","c":"Rantasalmi","s":"Kylätie","lat":62.06751,"lon":28.29934},{"n":"Alko","c":"Kaavi","s":"Kaavintie","lat":62.9749,"lon":28.47857},{"n":"Alko","c":"","s":"Mäkirinteentie","lat":61.47531,"lon":23.97853},{"n":"Alko","c":"Enontekiö","s":"Kustaavantie","lat":68.38454,"lon":23.63869},{"n":"Alko","c":"Pargas","s":"Kyrkoesplanaden","lat":60.3084,"lon":22.30695},{"n":"Alko","c":"","s":"","lat":64.80666,"lon":25.45395},{"n":"Alko","c":"Rukatunturi","s":"Rukanriutta","lat":66.16488,"lon":29.12098},{"n":"Alko","c":"","s":"","lat":65.32174,"lon":25.37561},{"n":"Alko","c":"","s":"Merenojantie","lat":64.26102,"lon":23.94961},{"n":"Alko","c":"Taivalkoski","s":"Kauppatie","lat":65.57507,"lon":28.24387},{"n":"Alko","c":"Nuorgam","s":"Nuorgamintie","lat":70.08028,"lon":27.8668},{"n":"Alko","c":"Kuusamo","s":"Luomantie","lat":65.9565,"lon":29.1616},{"n":"Alko","c":"Karkkila","s":"Mäntylänkatu","lat":60.53427,"lon":24.23204},{"n":"Alko","c":"","s":"","lat":62.48762,"lon":22.75112},{"n":"Alko","c":"","s":"","lat":61.46608,"lon":23.72347},{"n":"Alko","c":"Pirkkala","s":"Suupantie","lat":61.46613,"lon":23.64331},{"n":"Alko","c":"Vantaa","s":"Ainontie","lat":60.2718,"lon":24.80414},{"n":"Alko","c":"Kuopio","s":"Haapaniemenkatu","lat":62.89228,"lon":27.67652},{"n":"Alko","c":"Suomussalmi","s":"Ämmänkatu","lat":64.88315,"lon":28.91544},{"n":"Alko","c":"","s":"Leppävirrantie","lat":62.4909,"lon":27.78578},{"n":"Alko","c":"","s":"Torikuja","lat":63.90177,"lon":23.91779},{"n":"Alko","c":"Mänttä","s":"Hallituskatu","lat":62.0296,"lon":24.62464},{"n":"Alko","c":"","s":"","lat":61.34943,"lon":25.26771},{"n":"Alko","c":"Rovaniemi","s":"Pulkamontie","lat":66.51794,"lon":25.75492},{"n":"Alko","c":"","s":"","lat":66.49257,"lon":25.68924},{"n":"Alko","c":"Rovaniemi","s":"Koskikatu","lat":66.50256,"lon":25.7241},{"n":"Alko","c":"Suonenjoki","s":"Rautalammintie","lat":62.6254,"lon":27.11866},{"n":"Alko","c":"Turku","s":"Kauppiaskatu","lat":60.45206,"lon":22.26856},{"n":"Alko","c":"Loviisa","s":"Mariankatu","lat":60.4589,"lon":26.22731},{"n":"Alko","c":"","s":"","lat":61.05001,"lon":28.17751},{"n":"Alko","c":"Kausala","s":"Kauppakatu","lat":60.88936,"lon":26.34197},{"n":"Alko","c":"","s":"","lat":61.04531,"lon":28.20233},{"n":"Alko","c":"Lieksa","s":"Pielisentie","lat":63.31884,"lon":30.02357},{"n":"Alko","c":"Inkeroinen","s":"Lauttatie","lat":60.69268,"lon":26.838},{"n":"Alko","c":"Virrat","s":"Pääskyntie","lat":62.24095,"lon":23.77976},{"n":"Alko","c":"","s":"","lat":64.67864,"lon":24.4873},{"n":"Alko","c":"Kurikka","s":"Laurintie","lat":62.6159,"lon":22.39449},{"n":"Alko","c":"","s":"","lat":61.5792,"lon":26.02204},{"n":"Alko","c":"Mäntsälä","s":"Sälinkääntie","lat":60.63762,"lon":25.31696},{"n":"Alko","c":"","s":"Keskuskatu","lat":64.86987,"lon":27.6674},{"n":"Alko","c":"Vääksy","s":"Maakaupantie","lat":61.17305,"lon":25.5466},{"n":"Alko","c":"Savonlinna","s":"Olavinkatu","lat":61.86962,"lon":28.87899},{"n":"Alko","c":"Savonlinna","s":"Nojanmaantie","lat":61.87596,"lon":28.94796},{"n":"Alko","c":"","s":"","lat":65.35982,"lon":26.99556},{"n":"Alko","c":"","s":"","lat":68.65926,"lon":27.53976},{"n":"Alko","c":"Ulvila","s":"Vanha Helsingintie","lat":61.42719,"lon":21.87645},{"n":"Alko","c":"Helsinki","s":"Pakilantie","lat":60.23665,"lon":24.92873},{"n":"Alko","c":"Lammi","s":"Mommilantie","lat":61.07907,"lon":25.01094},{"n":"Alko","c":"Vantaa","s":"Vantaanportinkatu","lat":60.291,"lon":24.96628},{"n":"Alko","c":"Hamina","s":"Isoympyräkatu","lat":60.56874,"lon":27.19456},{"n":"Alko","c":"Vaasa","s":"Kokkokalliontie","lat":63.10886,"lon":21.65144},{"n":"Alko","c":"Espoo","s":"Räävelintie","lat":60.18834,"lon":24.58691},{"n":"Alko","c":"","s":"","lat":61.00652,"lon":24.50666},{"n":"Alko","c":"","s":"","lat":62.7981,"lon":30.15016},{"n":"Alko","c":"Siilinjärvi","s":"Toritie","lat":63.07426,"lon":27.6561},{"n":"Alko","c":"Piikkiö","s":"Lukkarintie","lat":60.42562,"lon":22.51428},{"n":"Alko","c":"","s":"","lat":66.32699,"lon":23.67732},{"n":"Alko","c":"Espoo","s":"Komeetankatu","lat":60.16689,"lon":24.73471},{"n":"Alko","c":"Raisio","s":"Voudinkatu","lat":60.49001,"lon":22.17003},{"n":"Alko","c":"","s":"","lat":64.67531,"lon":28.50551},{"n":"Alko","c":"Turku","s":"Markulantie","lat":60.47203,"lon":22.23392},{"n":"Alko","c":"","s":"","lat":62.60146,"lon":29.76484},{"n":"Alko","c":"Helsinki","s":"Hankasuontie","lat":60.24501,"lon":24.8467},{"n":"Alko","c":"Imatra","s":"Karhumäenkatu","lat":61.18996,"lon":28.76511},{"n":"Alko Imatra Vuoksenniska","c":"Imatra","s":"Torikatu","lat":61.22453,"lon":28.83518},{"n":"Alko","c":"","s":"","lat":62.31805,"lon":27.86163},{"n":"Alko","c":"","s":"","lat":60.72052,"lon":24.44185},{"n":"Alko","c":"","s":"","lat":62.86408,"lon":27.613},{"n":"Alko","c":"Kuopio","s":"Petosentie","lat":62.83982,"lon":27.64765},{"n":"Alko","c":"Helsinki","s":"Tilkanvierto","lat":60.19758,"lon":24.9005},{"n":"Alko","c":"Helsinki","s":"Ala-Malmin tori","lat":60.25157,"lon":25.01422},{"n":"Alko","c":"Kuhmo","s":"Torikatu","lat":64.12789,"lon":29.52047},{"n":"Alko","c":"Kempele","s":"Myllytie","lat":64.9046,"lon":25.54218},{"n":"Alko","c":"Kolari","s":"Jokijalantie","lat":67.33492,"lon":23.8204},{"n":"Alko","c":"Turku","s":"Pitkämäenkatu","lat":60.45736,"lon":22.23452},{"n":"Alko","c":"Turku","s":"Vanha Kakskerrantie","lat":60.41876,"lon":22.22928},{"n":"Alko","c":"Helsinki","s":"Eteläesplanadi","lat":60.16701,"lon":24.94518},{"n":"Alko","c":"","s":"","lat":61.8124,"lon":22.37656},{"n":"Alko","c":"","s":"","lat":61.49438,"lon":21.80063},{"n":"Alko","c":"Järvenpää","s":"Sushikuja","lat":60.47654,"lon":25.10221},{"n":"Alko","c":"Helsinki","s":"Pohjoinen Hesperiankatu","lat":60.17663,"lon":24.91591},{"n":"Alko","c":"","s":"","lat":69.01643,"lon":20.87671},{"n":"Alko","c":"Nurmijärvi","s":"Kauppanummentie","lat":60.4579,"lon":24.82166},{"n":"Alko","c":"","s":"","lat":60.39996,"lon":25.68649},{"n":"Alko","c":"Nummela","s":"Tuusankaari","lat":60.33295,"lon":24.33052},{"n":"Alko","c":"Hämeenkyrö","s":"Kyreltie","lat":61.65639,"lon":23.1828},{"n":"Alko","c":"Muhos","s":"Valtatie","lat":64.80755,"lon":25.99162},{"n":"Alko","c":"","s":"","lat":61.31381,"lon":23.75909},{"n":"Alko","c":"Kyyjärvi","s":"Vaasantie","lat":63.04215,"lon":24.55867},{"n":"Alko","c":"Hämeenlinna","s":"Kaivokatu","lat":60.99298,"lon":24.45662},{"n":"Alko","c":"","s":"","lat":64.56013,"lon":26.84333},{"n":"Alko","c":"Pori","s":"Liisankatu","lat":61.48352,"lon":21.79739},{"n":"Alko","c":"","s":"","lat":60.16014,"lon":24.88158},{"n":"Alko","c":"","s":"","lat":60.64727,"lon":22.591},{"n":"Alko","c":"Kouvola","s":"Kouvolankatu","lat":60.86779,"lon":26.70738},{"n":"Alko","c":"Pulkkila","s":"Pulkkilantie","lat":64.26566,"lon":25.86639},{"n":"Alko","c":"Nivala","s":"Toritie","lat":63.92872,"lon":24.96897},{"n":"Alko","c":"Muurame","s":"Setäläntie","lat":62.13692,"lon":25.67364},{"n":"Alko","c":"Kiiminki","s":"Kauppareitti","lat":65.12762,"lon":25.77887},{"n":"Alko","c":"Hausjärvi","s":"Tammitie","lat":60.78835,"lon":25.02693},{"n":"Alko","c":"","s":"","lat":62.2605,"lon":24.69428},{"n":"Alko","c":"","s":"","lat":60.92247,"lon":24.64877},{"n":"Alko","c":"Kuortti","s":"Mäyrätie","lat":61.42111,"lon":26.435},{"n":"Alko","c":"Nurmes","s":"Porokylänkatu","lat":63.55627,"lon":29.10516},{"n":"Alko","c":"Sysmä","s":"Särkilahdentie","lat":61.50255,"lon":25.68188},{"n":"Alko","c":"Tampere","s":"Vuolteenkatu","lat":61.4928,"lon":23.76828},{"n":"Alko","c":"Viitasaari","s":"Pappilantie","lat":63.07603,"lon":25.86355},{"n":"Alko","c":"Juuka","s":"","lat":63.24854,"lon":29.26269},{"n":"Alko","c":"Valkeakoski","s":"Valtakatu","lat":61.26637,"lon":24.02891},{"n":"Alko","c":"Helsinki","s":"Aleksanterinkatu","lat":60.16822,"lon":24.9425},{"n":"Alko","c":"Kajaani","s":"Kauppakatu","lat":64.22297,"lon":27.73581},{"n":"Alko","c":"Helsinki","s":"Hermannin rantatie","lat":60.18745,"lon":24.97884},{"n":"Alko","c":"Uusikaupunki","s":"Ketunkalliontie","lat":60.8052,"lon":21.42494},{"n":"Alko","c":"Lappeenranta","s":"Kaivokatu","lat":61.0573,"lon":28.19368},{"n":"Alko","c":"Nilsiä","s":"Nilsiäntie","lat":63.20108,"lon":28.08951},{"n":"Alko","c":"Tampere","s":"Tesomankatu","lat":61.5052,"lon":23.6272},{"n":"Alko","c":"Nastola","s":"Muurarintie","lat":60.93699,"lon":25.96228},{"n":"Alko","c":"Kauniainen","s":"Kauniaistentie","lat":60.21009,"lon":24.72935},{"n":"Alko","c":"Pihtipudas","s":"Asematie","lat":63.3691,"lon":25.58506},{"n":"Alko","c":"","s":"","lat":60.19856,"lon":24.92979},{"n":"Alko","c":"Äänekoski","s":"Työskintie","lat":62.60277,"lon":25.72414},{"n":"Alko","c":"Outokumpu","s":"Kummunkatu","lat":62.72639,"lon":29.01364},{"n":"Alko","c":"","s":"","lat":66.71594,"lon":27.42855},{"n":"Alko","c":"Espoo","s":"Sinikalliontie","lat":60.20437,"lon":24.76671},{"n":"Alko","c":"","s":"","lat":63.21872,"lon":23.62442},{"n":"Alko","c":"","s":"","lat":62.30146,"lon":27.16131},{"n":"Alko","c":"Heinävesi","s":"Kermantie","lat":62.42575,"lon":28.63201},{"n":"Alko","c":"Liperi","s":"Heinävedentie","lat":62.52819,"lon":29.38435},{"n":"Alko","c":"Ilomantsi","s":"Mantsintie","lat":62.6723,"lon":30.935},{"n":"Alko","c":"","s":"","lat":69.39886,"lon":25.85263},{"n":"Alko","c":"","s":"","lat":65.74234,"lon":24.57836},{"n":"Alko","c":"","s":"","lat":65.79393,"lon":24.52617},{"n":"Alko","c":"Helsinki","s":"Kiviparintie","lat":60.22405,"lon":25.07423},{"n":"Alko","c":"Lohja","s":"Suurlohjankatu","lat":60.25064,"lon":24.06961},{"n":"Alko","c":"Kotka","s":"Karhukuja","lat":60.51349,"lon":26.93544},{"n":"Alko","c":"Vantaa","s":"Peltolantie","lat":60.29399,"lon":25.03149},{"n":"Alko","c":"","s":"","lat":62.25645,"lon":25.7738},{"n":"Alko","c":"Oulu","s":"Laakeritie","lat":65.03911,"lon":25.55243},{"n":"Alko","c":"Paimio","s":"Asematie","lat":60.45819,"lon":22.68897},{"n":"Alko","c":"","s":"","lat":60.16943,"lon":24.93292},{"n":"Alko","c":"Helsinki","s":"Jakomäentie","lat":60.26185,"lon":25.07493},{"n":"Alko","c":"","s":"Puruvedentie","lat":61.91189,"lon":29.28009},{"n":"Alko","c":"Äkäslompolo","s":"Sannanrannantie","lat":67.60549,"lon":24.15419},{"n":"Alko","c":"Pello","s":"","lat":66.77492,"lon":23.96392},{"n":"Alko","c":"Ranua","s":"Keskustie","lat":65.92864,"lon":26.51629},{"n":"Alko","c":"Lahti","s":"Johanneksenkatu","lat":61.00681,"lon":25.6776},{"n":"Alko","c":"","s":"","lat":61.30977,"lon":22.1363},{"n":"Alko","c":"Mynämäki","s":"Valtakatu","lat":60.68484,"lon":21.98868},{"n":"Alko","c":"Vantaa","s":"Kuriiritie","lat":60.28845,"lon":24.99898},{"n":"Alko","c":"Vaasa","s":"Elementtitehtaantie","lat":63.07293,"lon":21.69935},{"n":"Alko","c":"Helsinki","s":"Kaivokatu","lat":60.17011,"lon":24.94148},{"n":"Alko","c":"Espoo","s":"Espoonlahdenkatu","lat":60.14957,"lon":24.65484},{"n":"Alko","c":"","s":"","lat":60.04352,"lon":24.00671},{"n":"Alko","c":"Alajärvi","s":"Yrittäjäntie","lat":63.00577,"lon":23.80261},{"n":"Alko","c":"Kauhajoki","s":"Puistotie","lat":62.43405,"lon":22.17908},{"n":"Alko","c":"","s":"","lat":62.24769,"lon":25.87628},{"n":"Alko","c":"Helsinki","s":"Kruunuvuorenkatu","lat":60.16662,"lon":24.96499},{"n":"Alko","c":"","s":"","lat":60.20349,"lon":24.65827},{"n":"Alko","c":"Lahti","s":"Kauppiaankatu","lat":60.98141,"lon":25.73725},{"n":"Alko","c":"Masku","s":"Kauppatie","lat":60.5696,"lon":22.09888},{"n":"Alko","c":"Karstula","s":"Keskustie","lat":62.8795,"lon":24.80357},{"n":"Alko","c":"Lohja","s":"Reunakatu","lat":60.22594,"lon":24.02729},{"n":"Alko","c":"","s":"","lat":62.79424,"lon":22.79145},{"n":"Alko","c":"Loimaa","s":"Aleksis Kiven katu","lat":60.85689,"lon":23.04522},{"n":"Alko","c":"","s":"","lat":60.29764,"lon":25.32948},{"n":"Alko","c":"","s":"","lat":62.61712,"lon":29.77814},{"n":"Alko","c":"Salo","s":"Haarlantie","lat":60.20607,"lon":23.11357},{"n":"Alko","c":"","s":"","lat":60.3942,"lon":23.08225},{"n":"Alko","c":"","s":"","lat":60.98674,"lon":25.66486},{"n":"Alko","c":"Vantaa","s":"Vantaankoskentie","lat":60.31322,"lon":24.84688},{"n":"Alko","c":"Tampere","s":"Tammelankatu","lat":61.49988,"lon":23.78576},{"n":"Alko","c":"","s":"","lat":60.09973,"lon":19.94098},{"n":"Alko","c":"Porvoo","s":"Välikatu","lat":60.39462,"lon":25.65955},{"n":"Alko","c":"Lapua","s":"Latojantie","lat":62.97424,"lon":23.02397},{"n":"Alko","c":"Utö","s":"Utö byväg","lat":59.78135,"lon":21.37053},{"n":"Alko","c":"Kouvola","s":"Tommolankatu","lat":60.87126,"lon":26.65452},{"n":"Alko","c":"Vantaa","s":"Ojalehdonkuja","lat":60.32422,"lon":25.0569},{"n":"Alko","c":"Hauho","s":"Hauhontie","lat":61.17113,"lon":24.56271},{"n":"Alko","c":"Teuva","s":"Mikkiläntie","lat":62.48715,"lon":21.73964},{"n":"Alko","c":"","s":"","lat":60.81201,"lon":23.63707},{"n":"Alko","c":"","s":"","lat":63.68225,"lon":25.97991},{"n":"Alko","c":"Lieto","s":"Hyvättyläntie","lat":60.50379,"lon":22.45719},{"n":"Alko","c":"","s":"","lat":61.47828,"lon":23.52484},{"n":"Alko","c":"","s":"","lat":61.47583,"lon":23.83939},{"n":"Alko","c":"Pori","s":"Itäkeskuksenkaari","lat":61.45422,"lon":21.83856},{"n":"Alko","c":"","s":"","lat":61.36028,"lon":23.79516},{"n":"Alko","c":"","s":"","lat":60.87535,"lon":26.65338},{"n":"Alko","c":"","s":"","lat":60.1307,"lon":19.93313},{"n":"Alko","c":"Muonio","s":"Lahenrannantie","lat":67.95599,"lon":23.68335},{"n":"Alko","c":"","s":"","lat":60.90716,"lon":26.62678},{"n":"Alko","c":"Orivesi","s":"Keskustie","lat":61.67841,"lon":24.35743},{"n":"Alko","c":"","s":"","lat":64.13079,"lon":28.3829},{"n":"Alko","c":"Espoo","s":"Merituulentie","lat":60.17035,"lon":24.76388},{"n":"Alko","c":"Espoo","s":"Piispansilta","lat":60.16189,"lon":24.73856},{"n":"Alko","c":"Kerava","s":"Nikonkatu","lat":60.40061,"lon":25.10087},{"n":"Alko","c":"Kerava","s":"Kauppakaari","lat":60.40123,"lon":25.10282},{"n":"Alko","c":"Helsinki","s":"Yliskylän puistokatu","lat":60.17916,"lon":25.05134},{"n":"Alko","c":"Ähtäri","s":"Oikotie","lat":62.54974,"lon":24.08612},{"n":"Alko","c":"Hyvinkää","s":"Torikatu","lat":60.63008,"lon":24.86448},{"n":"Alko","c":"Hyvinkää","s":"Hämeenkatu","lat":60.63183,"lon":24.86424}];
+
+const $status = document.getElementById('status');
+const $distance = document.getElementById('distance');
+const $store = document.getElementById('store');
+const $arrow = document.getElementById('arrow');
+const $permbtn = document.getElementById('permbtn');
+
+let userLat = null, userLon = null;
+let heading = 0;
+let lastRot = 0;
+
+const toRad = d => d * Math.PI / 180;
+const toDeg = r => r * 180 / Math.PI;
+
+function distMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const p1 = toRad(lat1), p2 = toRad(lat2);
+  const dp = toRad(lat2 - lat1);
+  const dl = toRad(lon2 - lon1);
+  const a = Math.sin(dp/2)**2 + Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function bearingDeg(lat1, lon1, lat2, lon2) {
+  const p1 = toRad(lat1), p2 = toRad(lat2);
+  const dl = toRad(lon2 - lon1);
+  const y = Math.sin(dl) * Math.cos(p2);
+  const x = Math.cos(p1)*Math.sin(p2) - Math.sin(p1)*Math.cos(p2)*Math.cos(dl);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
+function findNearest() {
+  let best = null, bestD = Infinity;
+  for (const s of STORES) {
+    const d = distMeters(userLat, userLon, s.lat, s.lon);
+    if (d < bestD) { bestD = d; best = s; }
+  }
+  return { store: best, dist: bestD };
+}
+
+function formatDist(m) {
+  if (m < 1000) return Math.round(m) + ' m';
+  if (m < 10000) return (m/1000).toFixed(2) + ' km';
+  return Math.round(m/1000) + ' km';
+}
+
+// Rotate arrow taking the shortest angular path (avoid 359→0 jump spin)
+function setRotation(target) {
+  let delta = ((target - lastRot) % 360 + 540) % 360 - 180;
+  lastRot = lastRot + delta;
+  $arrow.style.transform = `rotate(${lastRot}deg)`;
+}
+
+function render() {
+  if (userLat == null) return;
+  const { store, dist } = findNearest();
+  const bearing = bearingDeg(userLat, userLon, store.lat, store.lon);
+  $distance.textContent = formatDist(dist);
+  $store.textContent = (store.n || 'Alko') + (store.c ? ' · ' + store.c : '');
+  setRotation((bearing - heading + 360) % 360);
+  $status.textContent = '';
+}
+
+function onPos(p) {
+  userLat = p.coords.latitude;
+  userLon = p.coords.longitude;
+  render();
+}
+function onPosErr(e) {
+  $status.textContent = 'Sijainti epäonnistui: ' + e.message;
+}
+
+function onOrient(e) {
+  let h;
+  if (typeof e.webkitCompassHeading === 'number') {
+    h = e.webkitCompassHeading;
+  } else if (typeof e.alpha === 'number') {
+    h = (360 - e.alpha) % 360;
+  } else {
+    return;
+  }
+  heading = h;
+  render();
+}
+
+function startCompass() {
+  if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(state => {
+      if (state === 'granted') {
+        window.addEventListener('deviceorientation', onOrient, true);
+        $permbtn.hidden = true;
+      } else {
+        $status.textContent = 'Kompassi-lupa evätty';
+      }
+    }).catch(() => { $status.textContent = 'Kompassia ei voitu käynnistää'; });
+  } else {
+    window.addEventListener('deviceorientationabsolute', onOrient, true);
+    window.addEventListener('deviceorientation', onOrient, true);
+    $permbtn.hidden = true;
+  }
+}
+
+if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
+  $permbtn.hidden = false;
+  $permbtn.addEventListener('click', startCompass, { once: true });
+} else {
+  startCompass();
+}
+
+if (!navigator.geolocation) {
+  $status.textContent = 'Selain ei tue paikannusta';
+} else {
+  navigator.geolocation.watchPosition(onPos, onPosErr, {
+    enableHighAccuracy: true, maximumAge: 5000, timeout: 30000
+  });
+}
+</script>
+</body>
+</html>
