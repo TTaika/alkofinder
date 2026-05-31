@@ -51,6 +51,18 @@
     position: absolute; top: 12px; left: 12px; right: 12px;
     text-align: center; font-size: 13px; color: #888;
   }
+  #toggle {
+    position: absolute; top: 36px; left: 50%; transform: translateX(-50%);
+    display: inline-flex; background: #1a1a1f; border: 1px solid #2a2a2e;
+    border-radius: 999px; padding: 4px; gap: 2px;
+  }
+  #toggle button {
+    background: transparent; color: #b6b6bb; border: 0;
+    padding: 8px 18px; border-radius: 999px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    font-family: inherit;
+  }
+  #toggle button.active { background: #ff5252; color: #fff; }
   #permbtn {
     margin-top: 20px; padding: 12px 24px;
     background: #ff5252; color: #fff; border: 0; border-radius: 999px;
@@ -62,6 +74,10 @@
 <body>
 <div id="app">
   <div id="status">Etsitään sijaintia…</div>
+  <div id="toggle">
+    <button id="mode-alko" class="active">Alko</button>
+    <button id="mode-bar">Baari</button>
+  </div>
   <div id="compass">
     <div id="arrow">
       <svg viewBox="0 0 100 100" aria-hidden="true">
@@ -81,10 +97,31 @@ const $distance = document.getElementById('distance');
 const $store = document.getElementById('store');
 const $arrow = document.getElementById('arrow');
 const $permbtn = document.getElementById('permbtn');
+const $modeAlko = document.getElementById('mode-alko');
+const $modeBar = document.getElementById('mode-bar');
 
 let userLat = null, userLon = null;
 let heading = 0;
 let lastRot = 0;
+let BARS = null;
+let mode = localStorage.getItem('alkofinder.mode') === 'bar' ? 'bar' : 'alko';
+
+function applyMode() {
+  $modeAlko.classList.toggle('active', mode === 'alko');
+  $modeBar.classList.toggle('active', mode === 'bar');
+  localStorage.setItem('alkofinder.mode', mode);
+  render();
+}
+
+$modeAlko.addEventListener('click', () => { mode = 'alko'; applyMode(); });
+$modeBar.addEventListener('click', () => { mode = 'bar'; applyMode(); });
+$modeAlko.classList.toggle('active', mode === 'alko');
+$modeBar.classList.toggle('active', mode === 'bar');
+
+fetch('bars.json')
+  .then(r => r.json())
+  .then(d => { BARS = d; if (mode === 'bar') render(); })
+  .catch(() => { /* bars.json missing — Alko mode still works */ });
 
 const toRad = d => d * Math.PI / 180;
 const toDeg = r => r * 180 / Math.PI;
@@ -106,9 +143,14 @@ function bearingDeg(lat1, lon1, lat2, lon2) {
   return (toDeg(Math.atan2(y, x)) + 360) % 360;
 }
 
+function activeList() {
+  return mode === 'bar' ? (BARS || []) : STORES;
+}
+
 function findNearest() {
+  const list = activeList();
   let best = null, bestD = Infinity;
-  for (const s of STORES) {
+  for (const s of list) {
     const d = distMeters(userLat, userLon, s.lat, s.lon);
     if (d < bestD) { bestD = d; best = s; }
   }
@@ -130,10 +172,12 @@ function setRotation(target) {
 
 function render() {
   if (userLat == null) return;
+  if (mode === 'bar' && BARS == null) { $status.textContent = 'Ladataan baareja…'; return; }
   const { store, dist } = findNearest();
+  if (!store) { $store.textContent = '—'; $distance.textContent = '—'; return; }
   const bearing = bearingDeg(userLat, userLon, store.lat, store.lon);
   $distance.textContent = formatDist(dist);
-  $store.textContent = 'Alko ' + (store.n || '');
+  $store.textContent = (mode === 'alko' ? 'Alko ' : '') + (store.n || '');
   setRotation((bearing - heading + 360) % 360);
   $status.textContent = '';
 }
